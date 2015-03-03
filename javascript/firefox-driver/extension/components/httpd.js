@@ -1,4 +1,4 @@
-/* -*- indent-tabs-mode: nil; js-indent-level: 2 -*- */
+/* -*- Mode: JavaScript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set ts=2 sw=2 sts=2 et: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -9,34 +9,6 @@
  * component.  See the accompanying README file for user documentation on
  * httpd.js.
  */
-
-this.EXPORTED_SYMBOLS = [
-  "HTTP_400",
-  "HTTP_401",
-  "HTTP_402",
-  "HTTP_403",
-  "HTTP_404",
-  "HTTP_405",
-  "HTTP_406",
-  "HTTP_407",
-  "HTTP_408",
-  "HTTP_409",
-  "HTTP_410",
-  "HTTP_411",
-  "HTTP_412",
-  "HTTP_413",
-  "HTTP_414",
-  "HTTP_415",
-  "HTTP_417",
-  "HTTP_500",
-  "HTTP_501",
-  "HTTP_502",
-  "HTTP_503",
-  "HTTP_504",
-  "HTTP_505",
-  "HttpError",
-  "HttpServer",
-];
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
@@ -78,7 +50,7 @@ function NS_ASSERT(cond, msg)
 }
 
 /** Constructs an HTTP error object. */
-this.HttpError = function HttpError(code, description)
+function HttpError(code, description)
 {
   this.code = code;
   this.description = description;
@@ -94,30 +66,30 @@ HttpError.prototype =
 /**
  * Errors thrown to trigger specific HTTP server responses.
  */
-this.HTTP_400 = new HttpError(400, "Bad Request");
-this.HTTP_401 = new HttpError(401, "Unauthorized");
-this.HTTP_402 = new HttpError(402, "Payment Required");
-this.HTTP_403 = new HttpError(403, "Forbidden");
-this.HTTP_404 = new HttpError(404, "Not Found");
-this.HTTP_405 = new HttpError(405, "Method Not Allowed");
-this.HTTP_406 = new HttpError(406, "Not Acceptable");
-this.HTTP_407 = new HttpError(407, "Proxy Authentication Required");
-this.HTTP_408 = new HttpError(408, "Request Timeout");
-this.HTTP_409 = new HttpError(409, "Conflict");
-this.HTTP_410 = new HttpError(410, "Gone");
-this.HTTP_411 = new HttpError(411, "Length Required");
-this.HTTP_412 = new HttpError(412, "Precondition Failed");
-this.HTTP_413 = new HttpError(413, "Request Entity Too Large");
-this.HTTP_414 = new HttpError(414, "Request-URI Too Long");
-this.HTTP_415 = new HttpError(415, "Unsupported Media Type");
-this.HTTP_417 = new HttpError(417, "Expectation Failed");
+const HTTP_400 = new HttpError(400, "Bad Request");
+const HTTP_401 = new HttpError(401, "Unauthorized");
+const HTTP_402 = new HttpError(402, "Payment Required");
+const HTTP_403 = new HttpError(403, "Forbidden");
+const HTTP_404 = new HttpError(404, "Not Found");
+const HTTP_405 = new HttpError(405, "Method Not Allowed");
+const HTTP_406 = new HttpError(406, "Not Acceptable");
+const HTTP_407 = new HttpError(407, "Proxy Authentication Required");
+const HTTP_408 = new HttpError(408, "Request Timeout");
+const HTTP_409 = new HttpError(409, "Conflict");
+const HTTP_410 = new HttpError(410, "Gone");
+const HTTP_411 = new HttpError(411, "Length Required");
+const HTTP_412 = new HttpError(412, "Precondition Failed");
+const HTTP_413 = new HttpError(413, "Request Entity Too Large");
+const HTTP_414 = new HttpError(414, "Request-URI Too Long");
+const HTTP_415 = new HttpError(415, "Unsupported Media Type");
+const HTTP_417 = new HttpError(417, "Expectation Failed");
 
-this.HTTP_500 = new HttpError(500, "Internal Server Error");
-this.HTTP_501 = new HttpError(501, "Not Implemented");
-this.HTTP_502 = new HttpError(502, "Bad Gateway");
-this.HTTP_503 = new HttpError(503, "Service Unavailable");
-this.HTTP_504 = new HttpError(504, "Gateway Timeout");
-this.HTTP_505 = new HttpError(505, "HTTP Version Not Supported");
+const HTTP_500 = new HttpError(500, "Internal Server Error");
+const HTTP_501 = new HttpError(501, "Not Implemented");
+const HTTP_502 = new HttpError(502, "Bad Gateway");
+const HTTP_503 = new HttpError(503, "Service Unavailable");
+const HTTP_504 = new HttpError(504, "Gateway Timeout");
+const HTTP_505 = new HttpError(505, "HTTP Version Not Supported");
 
 /** Creates a hash with fields corresponding to the values in arr. */
 function array2obj(arr)
@@ -471,15 +443,7 @@ nsHttpServer.prototype =
   onStopListening: function(socket, status)
   {
     dumpn(">>> shutting down server on port " + socket.port);
-    for (var n in this._connections) {
-      if (!this._connections[n]._requestStarted) {
-        this._connections[n].close();
-      }
-    }
     this._socketClosed = true;
-    if (this._hasOpenConnections()) {
-      dumpn("*** open connections!!!");
-    }
     if (!this._hasOpenConnections())
     {
       dumpn("*** no open connections, notifying async from onStopListening");
@@ -521,14 +485,12 @@ nsHttpServer.prototype =
     this._host = host;
 
     // The listen queue needs to be long enough to handle
-    // network.http.max-persistent-connections-per-server or
-    // network.http.max-persistent-connections-per-proxy concurrent
-    // connections, plus a safety margin in case some other process is
-    // talking to the server as well.
+    // network.http.max-connections-per-server concurrent connections,
+    // plus a safety margin in case some other process is talking to
+    // the server as well.
     var prefs = getRootPrefBranch();
-    var maxConnections = 5 + Math.max(
-      prefs.getIntPref("network.http.max-persistent-connections-per-server"),
-      prefs.getIntPref("network.http.max-persistent-connections-per-proxy"));
+    var maxConnections =
+      prefs.getIntPref("network.http.max-connections-per-server") + 5;
 
     try
     {
@@ -537,52 +499,18 @@ nsHttpServer.prototype =
         var loopback = false;
       }
 
-      // When automatically selecting a port, sometimes the chosen port is
-      // "blocked" from clients. We don't want to use these ports because
-      // tests will intermittently fail. So, we simply keep trying to to
-      // get a server socket until a valid port is obtained. We limit
-      // ourselves to finite attempts just so we don't loop forever.
-      var ios = Cc["@mozilla.org/network/io-service;1"]
-                  .getService(Ci.nsIIOService);
-      var socket;
-      for (var i = 100; i; i--)
-      {
-        var temp = new ServerSocket(this._port,
+      var socket = new ServerSocket(this._port,
                                     loopback, // true = localhost, false = everybody
                                     maxConnections);
-
-        var allowed = ios.allowPort(temp.port, "http");
-        if (!allowed)
-        {
-          dumpn(">>>Warning: obtained ServerSocket listens on a blocked " +
-                "port: " + temp.port);
-        }
-
-        if (!allowed && this._port == -1)
-        {
-          dumpn(">>>Throwing away ServerSocket with bad port.");
-          temp.close();
-          continue;
-        }
-
-        socket = temp;
-        break;
-      }
-
-      if (!socket) {
-        throw new Error("No socket server available. Are there no available ports?");
-      }
-
       dumpn(">>> listening on port " + socket.port + ", " + maxConnections +
             " pending connections");
       socket.asyncListen(this);
-      this._port = socket.port;
-      this._identity._initialize(socket.port, host, true);
+      this._identity._initialize(port, host, true);
       this._socket = socket;
     }
     catch (e)
     {
-      dump("\n!!! could not start server on port " + port + ": " + e + "\n\n");
+      dumpn("!!! could not start server on port " + port + ": " + e);
       throw Cr.NS_ERROR_NOT_AVAILABLE;
     }
   },
@@ -802,9 +730,7 @@ nsHttpServer.prototype =
     this._stopCallback = null;
     try
     {
-      if (typeof callback === "function") {
-        callback();
-      }
+      callback();
     }
     catch (e)
     {
@@ -836,7 +762,7 @@ nsHttpServer.prototype =
     // Bug 508125: Add a GC here else we'll use gigabytes of memory running
     // mochitests. We can't rely on xpcshell doing an automated GC, as that
     // would interfere with testing GC stuff...
-    Components.utils.forceGC();
+    gc();
   },
 
   /**
@@ -850,7 +776,6 @@ nsHttpServer.prototype =
   }
 };
 
-this.HttpServer = nsHttpServer;
 
 //
 // RFC 2396 section 3.2.2:
@@ -1176,25 +1101,14 @@ function Connection(input, output, server, port, outgoingPort, number)
    */
   this.request = null;
 
-  /** This allows a connection to disambiguate between a peer initiating a
-   *  close and the socket being forced closed on shutdown.
-   */
-  this._closed = false;
-
-  /** State variable for debugging. */
-  this._processed = false;
-
-  /** whether or not 1st line of request has been received */
-  this._requestStarted = false; 
+  /** State variables for debugging. */
+  this._closed = this._processed = false;
 }
 Connection.prototype =
 {
   /** Closes this connection's input/output streams. */
   close: function()
   {
-    if (this._closed)
-        return;
-
     dumpn("*** closing connection " + this.number +
           " on port " + this._outgoingPort);
 
@@ -1252,11 +1166,6 @@ Connection.prototype =
     return "<Connection(" + this.number +
            (this.request ? ", " + this.request.path : "") +"): " +
            (this._closed ? "closed" : "open") + ">";
-  },
-
-  requestStarted: function()
-  {
-    this._requestStarted = true;
   }
 };
 
@@ -1443,7 +1352,6 @@ RequestReader.prototype =
     {
       this._parseRequestLine(line.value);
       this._state = READER_IN_HEADERS;
-      this._connection.requestStarted();
       return true;
     }
     catch (e)
@@ -2065,7 +1973,7 @@ function createHandlerFunc(handler)
  */
 function defaultIndexHandler(metadata, response)
 {
-  response.setHeader("Content-Type", "text/html;charset=utf-8", false);
+  response.setHeader("Content-Type", "text/html", false);
 
   var path = htmlEscape(decodeURI(metadata.path));
 
@@ -2172,7 +2080,6 @@ function toInternalPath(path, encoded)
   return comps.join("/");
 }
 
-const PERMS_READONLY = (4 << 6) | (4 << 3) | 4;
 
 /**
  * Adds custom-specified headers for the given file to the given response, if
@@ -2200,7 +2107,7 @@ function maybeAddHeaders(file, metadata, response)
     return;
 
   const PR_RDONLY = 0x01;
-  var fis = new FileInputStream(headerFile, PR_RDONLY, PERMS_READONLY,
+  var fis = new FileInputStream(headerFile, PR_RDONLY, 0444,
                                 Ci.nsIFileInputStream.CLOSE_ON_EOF);
 
   try
@@ -2735,7 +2642,7 @@ ServerHandler.prototype =
     var type = this._getTypeFromFile(file);
     if (type === SJS_TYPE)
     {
-      var fis = new FileInputStream(file, PR_RDONLY, PERMS_READONLY,
+      var fis = new FileInputStream(file, PR_RDONLY, 0444,
                                     Ci.nsIFileInputStream.CLOSE_ON_EOF);
 
       try
@@ -2788,7 +2695,7 @@ ServerHandler.prototype =
           // getting the line number where we evaluate the SJS file.  Don't
           // separate these two lines!
           var line = new Error().lineNumber;
-          Cu.evalInSandbox(sis.read(file.fileSize), s, "latest");
+          Cu.evalInSandbox(sis.read(file.fileSize), s);
         }
         catch (e)
         {
@@ -2829,7 +2736,7 @@ ServerHandler.prototype =
       maybeAddHeaders(file, metadata, response);
       response.setHeader("Content-Length", "" + count, false);
 
-      var fis = new FileInputStream(file, PR_RDONLY, PERMS_READONLY,
+      var fis = new FileInputStream(file, PR_RDONLY, 0444,
                                     Ci.nsIFileInputStream.CLOSE_ON_EOF);
 
       offset = offset || 0;
@@ -2856,7 +2763,8 @@ ServerHandler.prototype =
         throw e;
       }
 
-      let writeMore = function () {
+      function writeMore()
+      {
         gThreadManager.currentThread
                       .dispatch(writeData, Ci.nsIThread.DISPATCH_NORMAL);
       }
@@ -3274,7 +3182,7 @@ ServerHandler.prototype =
     {
       // none of the data in metadata is reliable, so hard-code everything here
       response.setStatusLine("1.1", 400, "Bad Request");
-      response.setHeader("Content-Type", "text/plain;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/plain", false);
 
       var body = "Bad request\n";
       response.bodyOutputStream.write(body, body.length);
@@ -3282,7 +3190,7 @@ ServerHandler.prototype =
     403: function(metadata, response)
     {
       response.setStatusLine(metadata.httpVersion, 403, "Forbidden");
-      response.setHeader("Content-Type", "text/html;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/html", false);
 
       var body = "<html>\
                     <head><title>403 Forbidden</title></head>\
@@ -3295,7 +3203,7 @@ ServerHandler.prototype =
     404: function(metadata, response)
     {
       response.setStatusLine(metadata.httpVersion, 404, "Not Found");
-      response.setHeader("Content-Type", "text/html;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/html", false);
 
       var body = "<html>\
                     <head><title>404 Not Found</title></head>\
@@ -3315,7 +3223,7 @@ ServerHandler.prototype =
       response.setStatusLine(metadata.httpVersion,
                             416,
                             "Requested Range Not Satisfiable");
-      response.setHeader("Content-Type", "text/html;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/html", false);
 
       var body = "<html>\
                    <head>\
@@ -3334,7 +3242,7 @@ ServerHandler.prototype =
       response.setStatusLine(metadata.httpVersion,
                              500,
                              "Internal Server Error");
-      response.setHeader("Content-Type", "text/html;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/html", false);
 
       var body = "<html>\
                     <head><title>500 Internal Server Error</title></head>\
@@ -3349,7 +3257,7 @@ ServerHandler.prototype =
     501: function(metadata, response)
     {
       response.setStatusLine(metadata.httpVersion, 501, "Not Implemented");
-      response.setHeader("Content-Type", "text/html;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/html", false);
 
       var body = "<html>\
                     <head><title>501 Not Implemented</title></head>\
@@ -3363,7 +3271,7 @@ ServerHandler.prototype =
     505: function(metadata, response)
     {
       response.setStatusLine("1.1", 505, "HTTP Version Not Supported");
-      response.setHeader("Content-Type", "text/html;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/html", false);
 
       var body = "<html>\
                     <head><title>505 HTTP Version Not Supported</title></head>\
@@ -3385,7 +3293,7 @@ ServerHandler.prototype =
     "/": function(metadata, response)
     {
       response.setStatusLine(metadata.httpVersion, 200, "OK");
-      response.setHeader("Content-Type", "text/html;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/html", false);
 
       var body = "<html>\
                     <head><title>httpd.js</title></head>\
@@ -3403,7 +3311,7 @@ ServerHandler.prototype =
     "/trace": function(metadata, response)
     {
       response.setStatusLine(metadata.httpVersion, 200, "OK");
-      response.setHeader("Content-Type", "text/plain;charset=utf-8", false);
+      response.setHeader("Content-Type", "text/plain", false);
 
       var body = "Request-URI: " +
                  metadata.scheme + "://" + metadata.host + ":" + metadata.port +
@@ -5296,7 +5204,7 @@ Request.prototype =
 
 // XPCOM trappings
 
-this.NSGetFactory = XPCOMUtils.generateNSGetFactory([nsHttpServer]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([nsHttpServer]);
 
 /**
  * Creates a new HTTP server listening for loopback traffic on the given port,
